@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="referrer" content="no-referrer">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>KSL Universal Bridge</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        /* --- THEME --- */
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.75);
+            --accent: #3b82f6; 
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --success: #10b981;
+            --danger: #ef4444; 
+            --danger-bg: rgba(239, 68, 68, 0.2);
+        }
+
+        /* --- RESET & BASE --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- HEADER --- */
+        header {
+            flex-shrink: 0;
+            padding: 15px 20px;
+            background: rgba(15, 23, 42, 0.95);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+        }
+        .logo { font-weight: 700; font-size: 1.1rem; color: var(--accent); letter-spacing: 0.5px; }
+
+        /* Toggles */
+        .controls { display: flex; gap: 15px; }
+        .toggle-wrapper { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text-muted); }
+        .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--accent); }
+        input:checked + .slider:before { transform: translateX(18px); }
+
+        /* --- MAIN LAYOUT --- */
+        main {
+            flex: 1;
+            display: flex;
+            padding: 15px;
+            gap: 15px;
+            position: relative;
+            flex-direction: row; 
+            min-height: 0; 
+        }
+
+        /* --- PANELS --- */
+        .panel {
+            flex: 1;
+            background: var(--card-bg);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 16px;
+            backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            transition: all 0.3s ease;
+            min-height: 0; 
+            position: relative; 
+        }
+
+        .panel-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;
+            flex-shrink: 0;
+        }
+        .panel-title { font-weight: 600; color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 1px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; transition: 0.3s; }
+        .status-dot.active { background: var(--success); box-shadow: 0 0 8px var(--success); }
+
+        /* --- LEFT PANEL (User/Camera) --- */
+        .video-wrapper {
+            flex: 1;
+            position: relative;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 12px;
+            min-height: 0;
+        }
+
+        .video-wrapper video, 
+        .video-wrapper canvas {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            transform: scaleX(-1); object-fit: cover;
+        }
+        
+        .draft-area {
+            flex-shrink: 0;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            padding: 10px;
+            display: flex; gap: 15px; 
+            height: 100px;
+            position: relative;
+        }
+        
+        #ksl-text {
+            flex: 1; 
+            background: transparent; 
+            border: none; 
+            color: white;
+            font-size: 1rem; 
+            padding: 5px; 
+            outline: none;
+            resize: none; 
+            font-family: inherit;
+        }
+        #ksl-text::-webkit-scrollbar { width: 6px; }
+        #ksl-text::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+
+        .btn-group {
+            display: flex; 
+            flex-direction: column; 
+            width: 50px; 
+            justify-content: space-between; 
+        }
+
+        .action-btn {
+            background: var(--accent); color: white; border: none;
+            width: 100%; height: 45%; 
+            border-radius: 8px;
+            cursor: pointer; font-size: 1.5rem; flex-shrink: 0;
+            transition: transform 0.1s ease;
+            display: flex; align-items: center; justify-content: center;
+        }
+        
+        .clear-btn {
+            background: var(--danger-bg); 
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            width: 100%; height: 45%; 
+            border-radius: 8px;
+            cursor: pointer; 
+            font-size: 1.2rem; 
+            display: flex; align-items: center; justify-content: center;
+            transition: 0.2s;
+        }
+        .clear-btn:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        /* --- RIGHT PANEL (Them/Speech) --- */
+        #speech-output {
+            flex: 1;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            padding: 15px;
+            font-size: 1.2rem;
+            line-height: 1.5;
+            overflow-y: auto; 
+            color: #e2e8f0;
+            border: 1px dashed rgba(255,255,255,0.1);
+            word-break: break-word; 
+        }
+        .interim { color: var(--text-muted); opacity: 0.7; }
+
+        #mic-visualizer {
+            display: block;
+            width: 60px;
+            height: 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 4px;
+        }
+
+        .mini-clear {
+            background: transparent; border: 1px solid var(--danger); color: var(--danger);
+            width: 24px; height: 24px; border-radius: 4px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.9rem; transition: 0.2s;
+        }
+        .mini-clear:hover { background: var(--danger); color: white; }
+
+        /* --- UTILITY --- */
+        .hidden { display: none !important; }
+
+        /* --- 📱 MOBILE RESPONSIVE FIX --- */
+        @media (max-width: 768px) {
+            /* 1. Stack Header Vertically */
+            header { 
+                flex-direction: column; 
+                gap: 12px; 
+                padding: 15px; 
+            }
+            
+            /* 2. Center Logo */
+            .logo { font-size: 1.2rem; }
+
+            /* 3. Spread Controls & Show Labels */
+            .controls { 
+                width: 100%; 
+                justify-content: space-evenly; /* Spread nicely */
+                gap: 10px; 
+            }
+            .toggle-wrapper span { 
+                display: inline-block; /* SHOW TEXT AGAIN */
+                font-size: 0.75rem; 
+            }
+
+            /* 4. Layout Stacking */
+            main {
+                flex-direction: column;
+                padding: 10px;
+                gap: 10px;
+            }
+            #panel-ksl { flex: 1.2; min-height: 350px; }
+            #panel-speech { flex: 0.8; min-height: 200px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">KSL Bridge</div>
+        <div class="controls">
+            <div class="toggle-wrapper">
+                <span>Hear</span>
+                <label class="switch"><input type="checkbox" id="toggle-speech" checked><span class="slider"></span></label>
+            </div>
+            <div class="toggle-wrapper">
+                <span>Skeleton</span>
+                <label class="switch"><input type="checkbox" id="toggle-skeleton" checked><span class="slider"></span></label>
+            </div>
+            <div class="toggle-wrapper">
+                <span>Sign</span>
+                <label class="switch"><input type="checkbox" id="toggle-ksl" checked><span class="slider"></span></label>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section class="panel" id="panel-ksl">
+            <div class="panel-header">
+                <span class="panel-title">Me (Sign Language)</span>
+                <div class="status-dot" id="ksl-status"></div>
+            </div>
+            
+            <div class="video-wrapper">
+                <video id="webcam" autoplay playsinline></video>
+                <canvas id="output_canvas"></canvas>
+            </div>
+
+            <div class="draft-area">
+                <textarea id="ksl-text" placeholder="Sign or type..." autocomplete="off"></textarea>
+                
+                <div class="btn-group">
+                    <button class="clear-btn" id="btn-clear-draft" title="Clear All">🗑️</button>
+                    <button class="action-btn" id="btn-speak" title="Play Audio">🔊</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel" id="panel-speech">
+            <div class="panel-header">
+                <span class="panel-title">Incoming Audio</span>
+                
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button class="mini-clear" id="btn-clear-speech" title="Clear History">🗑️</button>
+                    <canvas id="mic-visualizer" width="60" height="20"></canvas>
+                    <div class="status-dot" id="speech-status"></div>
+                </div>
+            </div>
+            
+            <div id="speech-output">
+                Waiting for audio...
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // --- UI LOGIC ---
+        const panelSpeech = document.getElementById('panel-speech');
+        const panelKsl = document.getElementById('panel-ksl');
+        const toggleSpeech = document.getElementById('toggle-speech');
+        const toggleKsl = document.getElementById('toggle-ksl');
+        const toggleSkeleton = document.getElementById('toggle-skeleton');
+        const canvas = document.getElementById('output_canvas');
+
+        function updateLayout() {
+            if(!toggleSpeech.checked) {
+                panelSpeech.classList.add('hidden');
+                panelKsl.style.flex = "1";
+            } else {
+                panelSpeech.classList.remove('hidden');
+                if(window.innerWidth > 768) panelKsl.style.flex = "1";
+            }
+
+            if(!toggleKsl.checked) {
+                panelKsl.classList.add('hidden');
+                panelSpeech.style.flex = "1";
+            } else {
+                panelKsl.classList.remove('hidden');
+            }
+
+            if(toggleKsl.checked) startCamera(); else stopCamera();
+            if(toggleSpeech.checked) { startListening(); startVisualizer(); } else { stopListening(); }
+            
+            if(!toggleSkeleton.checked) {
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        toggleSpeech.addEventListener('change', updateLayout);
+        toggleKsl.addEventListener('change', updateLayout);
+        toggleSkeleton.addEventListener('change', updateLayout);
+
+        // --- BUTTON LOGIC ---
+        document.getElementById('btn-clear-draft').addEventListener('click', () => {
+            document.getElementById('ksl-text').value = '';
+        });
+
+        document.getElementById('btn-clear-speech').addEventListener('click', () => {
+            document.getElementById('speech-output').innerHTML = '<span style="color:#64748b; font-style:italic;">History cleared. Waiting for audio...</span>';
+        });
+
+        // --- SPEECH RECOGNITION ---
+        let recognition;
+        let isRecognizing = false;
+        const speechOutput = document.getElementById('speech-output');
+        const speechStatus = document.getElementById('speech-status');
+
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'km-KH';
+
+            recognition.onstart = () => { isRecognizing = true; speechStatus.classList.add('active'); };
+            recognition.onend = () => { isRecognizing = false; speechStatus.classList.remove('active'); if(toggleSpeech.checked) recognition.start(); };
+            recognition.onresult = (event) => {
+                let final = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) final += event.results[i][0].transcript;
+                }
+                if(final) speechOutput.innerHTML += `<p>${final}</p>`;
+                speechOutput.scrollTop = speechOutput.scrollHeight;
+            };
+        }
+
+        function startListening() { if(isRecognizing || !recognition) return; try{ recognition.start(); } catch(e){} }
+        function stopListening() { if(recognition) recognition.stop(); }
+
+        // --- CAMERA ENGINE ---
+        const video = document.getElementById('webcam');
+        const kslStatus = document.getElementById('ksl-status');
+        let localStream = null;
+
+        async function startCamera() {
+            if (localStream) return;
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                video.srcObject = stream;
+                localStream = stream;
+                kslStatus.classList.add('active');
+            } catch (e) { console.error(e); }
+        }
+
+        function stopCamera() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                localStream = null;
+                kslStatus.classList.remove('active');
+            }
+        }
+
+        // --- AUDIO ENGINE ---
+        const btnSpeak = document.getElementById('btn-speak');
+        const kslInput = document.getElementById('ksl-text');
+
+        let allVoices = [];
+        function loadVoices() {
+            allVoices = window.speechSynthesis.getVoices();
+        }
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+        loadVoices(); 
+
+        function speakNative(text) {
+            window.speechSynthesis.cancel(); 
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'km-KH';
+            const khmerVoice = allVoices.find(v => v.lang.includes('km') || v.name.includes('Khmer') || v.name.includes('Cambodia'));
+            if(khmerVoice) utterance.voice = khmerVoice;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        btnSpeak.addEventListener('click', () => {
+            const text = kslInput.value.trim();
+            if (!text) return;
+
+            btnSpeak.style.transform = "scale(0.9)";
+            setTimeout(() => btnSpeak.style.transform = "scale(1)", 200);
+
+            const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=km&q=${encodeURIComponent(text)}`;
+            const audio = new Audio(url);
+            
+            const playPromise = audio.play();
+
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    loadVoices(); 
+                    speakNative(text);
+                });
+            }
+        });
+
+        // --- VISUALIZER ---
+        const micCanvas = document.getElementById("mic-visualizer");
+        const micCtx = micCanvas.getContext("2d");
+        let audioContext, analyser, microphone;
+        let isVisualizerRunning = false;
+
+        async function startVisualizer() {
+            if(isVisualizerRunning) return;
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                microphone = audioContext.createMediaStreamSource(stream);
+                microphone.connect(analyser);
+                analyser.fftSize = 256;
+                isVisualizerRunning = true;
+                drawVisualizer();
+            } catch (err) { console.error("Mic Error:", err); }
+        }
+
+        function drawVisualizer() {
+            if(!toggleSpeech.checked) { isVisualizerRunning = false; if(audioContext) audioContext.close(); return; }
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+            micCtx.clearRect(0, 0, micCanvas.width, micCanvas.height);
+            const barWidth = (micCanvas.width / bufferLength) * 2.5;
+            let barHeight, x = 0;
+            for(let i = 0; i < bufferLength; i++) {
+                barHeight = (dataArray[i] / 255) * micCanvas.height;
+                micCtx.fillStyle = `rgba(59, 130, 246, ${dataArray[i]/255 + 0.3})`;
+                micCtx.fillRect(x, micCanvas.height - barHeight, barWidth, barHeight);
+                x += barWidth + 1;
+            }
+            requestAnimationFrame(drawVisualizer);
+        }
+
+        window.addEventListener('resize', updateLayout);
+        updateLayout();
+    </script>
+</body>
+</html>

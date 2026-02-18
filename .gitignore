@@ -1,0 +1,6 @@
+# Ignore the heavy data collection folder
+MP_Data/
+Data_Collection/
+__pycache__/
+*.npy
+*.h5
